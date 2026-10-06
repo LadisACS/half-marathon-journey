@@ -1,16 +1,25 @@
-# Half-Marathon Journey
+# Half-Marathon Journey Cloud v3
 
-Osobní PWA webová aplikace pro běžecký plán k půlmaratonu.
+Cloudová verze používá Supabase Auth + PostgreSQL databázi.
 
-## GitHub Pages
-1. Vytvoř nový veřejný repozitář, např. `half-marathon-journey`.
-2. Nahraj všechny soubory z této složky do kořene repozitáře.
-3. Otevři Settings → Pages.
-4. V části Build and deployment vyber `Deploy from a branch`.
-5. Branch: `main`, folder: `/ (root)`.
-6. Ulož.
-7. Po zveřejnění bude aplikace na adrese:
-   `https://TVUJ-USERNAME.github.io/half-marathon-journey/`
+## Nasazení na GitHub Pages
+Nahraď v repozitáři tyto soubory:
+- index.html
+- app.js
+- manifest.webmanifest
+- sw.js
+- icon.svg
 
-## Data
-Data jsou uložena lokálně v prohlížeči (localStorage). Použij sekci Záloha pro export/import JSON.
+GitHub Pages zůstává na stejné URL.
+
+## Supabase
+Project URL je již nastavená ve `app.js`.
+Použit je pouze veřejný publishable key.
+
+## Přihlášení
+Aplikace podporuje e-mail + heslo. Pokud je v Supabase zapnuté potvrzení e-mailu,
+nový uživatel musí kliknout na potvrzovací odkaz.
+
+## Migrace
+Sekce "Záloha / migrace" umí načíst stará lokální data z předchozí verze
+uložená pod klíči `hmJourneyV2` nebo `hmJourney` a nahrát je do cloudu.

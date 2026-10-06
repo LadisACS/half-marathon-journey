@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0d1117" />
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <title>Half-Marathon Journey</title>
+  <title>Half-Marathon Journey Cloud</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121923; --panel2:#172131; --line:#263244;
@@ -27,6 +27,7 @@
     button.primary{background:var(--green);color:#09120c}
     button.secondary{background:#202a3a;color:#fff}
     button.danger{background:#3c2027;color:#ffb6bd}
+    button:disabled{opacity:.5;cursor:not-allowed}
     .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
     .c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
     @media(max-width:900px){.c3,.c4,.c6,.c8{grid-column:span 12}}
@@ -37,7 +38,7 @@
     .muted{color:var(--muted)} .small{font-size:12px}
     .progress{height:11px;background:#222d3d;border-radius:999px;overflow:hidden;margin-top:10px}
     .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:999px}
-    .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#202a3a;font-size:12px}
     .green{color:var(--green)}.yellow{color:var(--yellow)}.red{color:var(--red)}
     label{display:block;margin:10px 0 5px;font-size:13px;color:#d6deea;font-weight:700}
@@ -64,17 +65,43 @@
     .day{background:#0f151e;border:1px solid var(--line);border-radius:12px;padding:10px;min-height:120px}
     .day strong{display:block;margin-bottom:5px}
     .day.todayDay{border-color:var(--green)}
-    .toast{position:fixed;right:18px;bottom:18px;background:#152119;border:1px solid #2a6b42;color:#caffd8;padding:12px 16px;border-radius:12px;display:none}
+    .toast{position:fixed;right:18px;bottom:18px;background:#152119;border:1px solid #2a6b42;color:#caffd8;padding:12px 16px;border-radius:12px;display:none;z-index:20}
+    .authOverlay{position:fixed;inset:0;background:#080c11eF;z-index:10;display:flex;align-items:center;justify-content:center;padding:18px}
+    .authBox{width:min(460px,100%);background:#121923;border:1px solid var(--line);border-radius:20px;padding:22px}
+    .authBox h2{margin-top:0}
+    .hide{display:none!important}
+    .statusDot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--green);margin-right:6px}
   </style>
 </head>
 <body>
+
+<div class="authOverlay" id="authOverlay">
+  <div class="authBox">
+    <div class="kicker">Half-Marathon Journey Cloud</div>
+    <h2>Přihlášení</h2>
+    <p class="muted">Přihlášením budeš mít stejné tréninky na PC i telefonu.</p>
+    <label>E-mail</label>
+    <input type="email" id="authEmail" autocomplete="email" placeholder="tvuj@email.cz">
+    <label>Heslo</label>
+    <input type="password" id="authPassword" autocomplete="current-password" placeholder="min. 6 znaků">
+    <div class="row" style="margin-top:14px;justify-content:flex-start">
+      <button class="primary" id="loginBtn">Přihlásit</button>
+      <button class="secondary" id="signupBtn">Vytvořit účet</button>
+    </div>
+    <p class="small muted" id="authInfo" style="margin-top:14px"></p>
+  </div>
+</div>
+
 <div class="app">
   <header>
     <div>
       <h1>🏃 Half-Marathon Journey</h1>
-      <div class="sub">Osobní běžecký trenér • plán • deník • achievementy</div>
+      <div class="sub"><span class="statusDot"></span><span id="cloudStatus">Cloud: připojuji…</span></div>
     </div>
-    <div class="badge" id="levelBadge">LVL 1 · ROOKIE RUNNER</div>
+    <div class="row">
+      <div class="badge" id="levelBadge">LVL 1 · ROOKIE RUNNER</div>
+      <button class="secondary" id="logoutBtn">Odhlásit</button>
+    </div>
   </header>
 
   <nav>
@@ -84,7 +111,7 @@
     <button class="tab" data-tab="history">Historie</button>
     <button class="tab" data-tab="achievements">Achievementy</button>
     <button class="tab" data-tab="records">PR & statistiky</button>
-    <button class="tab" data-tab="backup">Záloha</button>
+    <button class="tab" data-tab="backup">Záloha / migrace</button>
   </nav>
 
   <section id="dashboard" class="section active grid">
@@ -134,7 +161,7 @@
     <div class="card c12">
       <div class="row">
         <div><div class="kicker">Rolling plan</div><div class="medium">Následujících 7 dní</div></div>
-        <button class="secondary" onclick="resetWeek()">Obnovit základní plán</button>
+        <button class="secondary" id="resetWeekBtn">Obnovit základní plán</button>
       </div>
       <div class="week" id="weekGrid" style="margin-top:12px"></div>
     </div>
@@ -146,20 +173,20 @@
       <div class="two">
         <div><label>Datum</label><input type="date" id="date"></div>
         <div><label>Typ</label><select id="type"><option>Běh</option><option>Posilovna</option><option>Chůze</option><option>Fotbal</option><option>Regenerace</option></select></div>
-        <div><label>Vzdálenost (km)</label><input type="number" step="0.01" id="km"></div>
-        <div><label>Čas (min)</label><input type="number" step="1" id="minutes"></div>
+        <div><label>Vzdálenost (km)</label><input type="number" step="0.01" id="km" placeholder="např. 4,20"></div>
+        <div><label>Čas (min)</label><input type="number" step="0.01" id="minutes" placeholder="např. 31,5"></div>
         <div><label>RPE 1–10</label><input type="number" min="1" max="10" id="rpe"></div>
         <div><label>Souvislý běh?</label><select id="continuous"><option value="yes">Ano</option><option value="no">Ne</option></select></div>
       </div>
       <label>Plán / účel</label><input id="plan" placeholder="Easy 30 min / Base building">
       <label>Poznámka</label><textarea rows="3" id="note" placeholder="Nohy OK, lehké dýchání, bez zastavení..."></textarea>
-      <div style="margin-top:14px"><button class="primary" onclick="addWorkout()">Uložit trénink</button></div>
+      <div style="margin-top:14px"><button class="primary" id="saveWorkoutBtn">Uložit do cloudu</button></div>
     </div>
     <div class="card c4">
-      <div class="kicker">Strava</div>
-      <div class="medium">Jak zapisovat</div>
-      <p class="muted">Nahraj běh ve Stravě a sem přepiš základní údaje. Přímé napojení na Strava API vyžaduje vlastní API klíče a backend.</p>
-      <div class="pill">Vzdálenost • čas • RPE • bez zastavení</div>
+      <div class="kicker">Automatický výpočet</div>
+      <div class="medium">Tempo</div>
+      <p id="pacePreview" class="big">—</p>
+      <p class="muted">Po zadání vzdálenosti a času se vypočítá průměrné tempo min/km.</p>
     </div>
   </section>
 
@@ -167,7 +194,7 @@
     <div class="card c12">
       <div class="kicker">Training log</div>
       <div class="medium">Plán vs. skutečnost</div>
-      <div style="overflow:auto"><table><thead><tr><th>Datum</th><th>Typ</th><th>Plán</th><th>Km</th><th>Čas</th><th>RPE</th><th>Souvisle</th><th>Poznámka</th><th></th></tr></thead><tbody id="logRows"></tbody></table></div>
+      <div style="overflow:auto"><table><thead><tr><th>Datum</th><th>Typ</th><th>Plán</th><th>Km</th><th>Čas</th><th>Tempo</th><th>RPE</th><th>Souvisle</th><th>Poznámka</th><th></th></tr></thead><tbody id="logRows"></tbody></table></div>
     </div>
   </section>
 
@@ -192,26 +219,22 @@
 
   <section id="backup" class="section grid">
     <div class="card c6">
-      <div class="kicker">Export</div>
-      <div class="medium">Zálohuj data</div>
-      <p class="muted">Stáhne JSON soubor s tréninky, plánem, readiness a nastavením.</p>
-      <button class="primary" onclick="exportData()">Stáhnout zálohu</button>
+      <div class="kicker">Migrace</div>
+      <div class="medium">Přenést data z předchozí verze</div>
+      <p class="muted">Pokud máš v tomto prohlížeči data z předchozí lokální verze, aplikace je může nahrát do Supabase.</p>
+      <button class="primary" id="migrateBtn">Přenést lokální data do cloudu</button>
     </div>
     <div class="card c6">
-      <div class="kicker">Import</div>
-      <div class="medium">Obnov data</div>
-      <input type="file" id="importFile" accept="application/json">
-      <div style="margin-top:12px"><button class="secondary" onclick="importData()">Importovat zálohu</button></div>
-    </div>
-    <div class="card c12">
-      <div class="kicker">Nebezpečná zóna</div>
-      <p class="muted">Vymaže všechna lokální data v tomto prohlížeči.</p>
-      <button class="danger" onclick="clearAll()">Vymazat všechna data</button>
+      <div class="kicker">Export</div>
+      <div class="medium">Stáhnout cloudovou zálohu</div>
+      <button class="secondary" id="exportBtn">Stáhnout JSON</button>
     </div>
   </section>
 </div>
+
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
